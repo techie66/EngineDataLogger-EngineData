@@ -32,7 +32,8 @@ volatile unsigned long  RPM_interval = MAX_UINT16_T,
 	 		SPEED_interval = MAX_UINT16_T,
                         rpm_time_last = 0,
                         speed_time_last = 0,
-                        wkg_micros = 0;
+                        rpm_wkg_micros = 0,
+                        speed_wkg_micros = 0;
 
 volatile bool           bike_running = false;
 unsigned long           wkgTime = 0,
@@ -42,7 +43,7 @@ unsigned long           wkgTime = 0,
 volatile uint8_t        rpm_pulse_count = 0,
 			speed_pulse_count = 0;;
 
-boolean                 debug = false;
+boolean                 debug = true;
 
 // callback for received data
 void receiveData(int byteCount){
@@ -59,22 +60,22 @@ void sendData(){
 
 // ISR to get pulse interval for RPM(engine)
 void rpmPulse() {
-  wkg_micros = micros();
+  rpm_wkg_micros = micros();
   rpm_pulse_count++;
   if (rpm_pulse_count >= rpm_pulses) { 
-    RPM_interval = (wkg_micros - rpm_time_last);
-    rpm_time_last = wkg_micros;
+    RPM_interval = (rpm_wkg_micros - rpm_time_last);
+    rpm_time_last = rpm_wkg_micros;
     rpm_pulse_count = 0;
   }
 }
 
 // ISR to get pulse interval for wheel(engine)
 void wheelPulse() {
-  wkg_micros = micros();
+  speed_wkg_micros = micros();
   speed_pulse_count++;
   if (speed_pulse_count >= speed_pulses) {
-    SPEED_interval = (wkg_micros - speed_time_last);
-    speed_time_last = wkg_micros;
+    SPEED_interval = (speed_wkg_micros - speed_time_last);
+    speed_time_last = speed_wkg_micros;
     speed_pulse_count = 0;
   }
 }
@@ -212,7 +213,7 @@ void loop() {
   if (wkgTime < MAX_UINT16_T) {
     // ( s/min * us/s / us/C*pulse ) * C = RPM
     // RPM_CONV is constant to solve equation since only variable is pulse time
-    rpm = (RPM_CONV / RPM_interval);
+    rpm = (RPM_CONV / wkgTime);
   }
 
   // Calculate Speed (x100)
@@ -229,7 +230,7 @@ void loop() {
     // CONV = in/mi * h/min * in/pulse
     // C = pulses
     // MPH_CONV is a constant calculated to solve to equation, since the only variable is pulse time
-    speed = ( MPH_CONV / SPEED_interval);
+    speed = ( MPH_CONV / wkgTime);
   }
   if (debug) {
       delay(500);
