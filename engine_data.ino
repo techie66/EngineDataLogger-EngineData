@@ -28,13 +28,14 @@ uint16_t                rpm = 0,
 			temp_oil = 0,
 			speed = 0;
 float			supply_voltage = 0.0;
-volatile unsigned long  RPM_interval = MAX_UINT16_T,
-	 		SPEED_interval = MAX_UINT16_T,
+volatile unsigned long  RPM_interval = 0,
+	 		SPEED_interval = 0,
                         rpm_time_last = 0,
                         speed_time_last = 0,
                         rpm_wkg_micros = 0,
                         speed_wkg_micros = 0;
-
+volatile unsigned long	rpm_pulse_times[rpm_pulses] = {0},
+	 		speed_pulse_times[speed_pulses] = {0};
 volatile bool           bike_running = false;
 unsigned long           wkgTime = 0,
                         time,
@@ -59,25 +60,38 @@ void sendData(){
 }
 
 // ISR to get pulse interval for RPM(engine)
+// a little longer than I'd like, since it handles the averaging
+// but it saves clock cycles overall by only calculating interval once
 void rpmPulse() {
+  // Save current micros
   rpm_wkg_micros = micros();
+  // increment counter and reset if necessary
   rpm_pulse_count++;
   if (rpm_pulse_count >= rpm_pulses) { 
-    RPM_interval = (rpm_wkg_micros - rpm_time_last);
-    rpm_time_last = rpm_wkg_micros;
     rpm_pulse_count = 0;
   }
+  // decrement RPM_interval by oldest interval
+  RPM_interval -= rpm_pulse_times[rpm_pulse_count];
+  // save new interval and add to RPM_interval
+  rpm_pulse_times[rpm_pulse_count] = (rpm_wkg_micros - rpm_time_last);
+  RPM_interval += rpm_pulse_times[rpm_pulse_count];
+  // Save last time we were called
+  rpm_time_last = rpm_wkg_micros;
 }
 
+
 // ISR to get pulse interval for wheel(engine)
+// same documentation as rpmPulse
 void wheelPulse() {
   speed_wkg_micros = micros();
   speed_pulse_count++;
   if (speed_pulse_count >= speed_pulses) {
-    SPEED_interval = (speed_wkg_micros - speed_time_last);
-    speed_time_last = speed_wkg_micros;
     speed_pulse_count = 0;
   }
+  SPEED_interval -= speed_pulse_times[speed_pulse_count];
+  speed_pulse_times[speed_pulse_count] = (speed_wkg_micros - speed_time_last);
+  SPEED_interval += speed_pulse_times[speed_pulse_count];
+  speed_time_last = speed_wkg_micros;
 }
 
 // ISR to signal bike is on
