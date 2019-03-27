@@ -14,7 +14,8 @@ const unsigned long     MAX_UINT16_T = 4294967295,
 const int               bikeOnPin = 12,
 			rpmPulsePin = 2,
 			wheelPulsePin = 3,
-			ledPin = 13;
+			ledPin = 13,
+			oil_Temp_pin = 15;
 const uint8_t		rpm_pulses = 10,
       			speed_pulses = 10;
 			// MPH_CONV = in/mi * h/min * in/pulse
@@ -44,7 +45,7 @@ unsigned long           wkgTime = 0,
 volatile uint8_t        rpm_pulse_count = 0,
 			speed_pulse_count = 0;;
 
-boolean                 debug = true;
+boolean                 debug = false;
 
 // callback for received data
 void receiveData(int byteCount){
@@ -106,6 +107,43 @@ void debug_out(const char str[]) {
   }
 }
 
+double Thermistor(int RawADC) {
+  /*Calculates temperature from analog reading
+   * Schematic :
+   * +Vs---R1---+---+---R3--GND
+   *            |   |
+   *           ADC  +--Rth--GND
+   *
+   * R1 and R3 chosen to provide no more that Vref at ADC 
+   * when Thermistor is disconnected (ie Rth=infinity)
+   * and acceptable current when thermistor is shorted (ie Rth=0)
+   */
+  double Temp;
+  double Rth; // Thermistor Resistance
+  double Vo;
+  double R2;
+  // Easiest way to calibrate is to adjust the resistor values slightly
+  static const double R1 = 460.0; // +side resistor
+  static const double R3 = 1000.0; // -side resistor
+  static const double Vs = 4.58; // voltage connected to +side resistor
+  static const double Vref = 3.26; // analog reference voltage
+  static const double SHA = .001600646526;
+  static const double SHB = .0002607956449;
+  static const double SHC = -0.00000004456663162;
+
+  /*calculations*/
+  Vo = (RawADC/1024.0)*Vref;
+  R2 = (Vo*R1)/(Vs-Vo);
+  Rth = (R3*R2)/(R3-R2);
+  Temp = log(Rth); //Temporarily holds the value of log(Rth) to be used below
+
+  // Steinhart-Hart (factored to reduce calculations a bit)
+  Temp = 1 / (SHA + (SHB + (SHC * Temp * Temp ))* Temp );
+  Temp = Temp - 273.15;            // Convert Kelvin to Celcius
+  Temp = (Temp * 9.0)/ 5.0 + 32.0; // Convert Celcius to Fahrenheit
+  return Temp;
+}
+
 void setup() {
   SleepyPi.enableWakeupAlarm(false);
   SleepyPi.rtcInit(false);
@@ -143,6 +181,9 @@ void setup() {
 void loop() {
   bool	pi_running;
   float	rpi_current = 0.0;
+  static long int oil_Temp_rb[10] = {0};
+  static long int oil_Temp_sum = 0;
+  static int oil_Temp_rb_i = 0;
 
   pi_running = SleepyPi.checkPiStatus(50,false);
   bike_running = !digitalRead(bikeOnPin);
@@ -246,6 +287,17 @@ void loop() {
     // MPH_CONV is a constant calculated to solve to equation, since the only variable is pulse time
     speed = ( MPH_CONV / wkgTime);
   }
+
+  // Keep track of Oil Temp
+  oil_Temp_rb_i++;
+  if (oil_Temp_rb_i >= 10) {
+    oil_Temp_rb_i=0;
+  }
+  oil_Temp_sum -= oil_Temp_rb[oil_Temp_rb_i];
+  oil_Temp_rb[oil_Temp_rb_i] = Thermistor(analogRead(oil_Temp_pin)) * 100;
+  oil_Temp_sum += oil_Temp_rb[oil_Temp_rb_i];
+  temp_oil = oil_Temp_sum / 10;
+
   if (debug) {
       delay(500);
       Serial.print("Speed Pulses:");
