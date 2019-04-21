@@ -15,7 +15,7 @@ const int               bikeOnPin = 12,
 			rpmPulsePin = 2,
 			wheelPulsePin = 3,
 			ledPin = 13,
-			oil_Temp_pin = 15;
+			oil_Temp_pin = 14;
 const uint8_t		rpm_pulses = 10,
       			speed_pulses = 10;
 			// MPH_CONV = in/mi * h/min * in/pulse
@@ -125,7 +125,8 @@ double Thermistor(int RawADC) {
   // Easiest way to calibrate is to adjust the resistor values slightly
   static const double R1 = 460.0; // +side resistor
   static const double R3 = 1000.0; // -side resistor
-  static const double Vs = 4.58; // voltage connected to +side resistor
+  static const double Rconn = 0.0; // sensor connection resistance
+  static const double Vs = 5.06; // voltage connected to +side resistor
   static const double Vref = 3.26; // analog reference voltage
   static const double SHA = .001600646526;
   static const double SHB = .0002607956449;
@@ -134,7 +135,7 @@ double Thermistor(int RawADC) {
   /*calculations*/
   Vo = (RawADC/1024.0)*Vref;
   R2 = (Vo*R1)/(Vs-Vo);
-  Rth = (R3*R2)/(R3-R2);
+  Rth = (R3*R2)/(R3-R2)-Rconn;
   Temp = log(Rth); //Temporarily holds the value of log(Rth) to be used below
 
   // Steinhart-Hart (factored to reduce calculations a bit)
@@ -187,6 +188,10 @@ void loop() {
 
   pi_running = SleepyPi.checkPiStatus(50,false);
   bike_running = !digitalRead(bikeOnPin);
+  if (debug) {
+    bike_running = true;
+    pi_running = true;
+  }
   rpi_current = SleepyPi.rpiCurrent();
 
   if (debug) {
@@ -205,7 +210,7 @@ void loop() {
     SleepyPi.enableExtPower(false);
     digitalWrite(ledPin,LOW);
     enablePCINT(digitalPinToPCINT(bikeOnPin));
-    SleepyPi.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF); 
+    SleepyPi.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
     disablePCINT(digitalPinToPCINT(bikeOnPin));
     digitalWrite(ledPin,HIGH);
     pi_running = SleepyPi.checkPiStatus(50,false);
