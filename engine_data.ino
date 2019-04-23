@@ -4,26 +4,45 @@
 #include <PCF8523.h>
 #include <Wire.h>
 #include <PinChangeInterrupt.h>
+#include <EEPROM.h>
 
-#define SLAVE_ADDRESS 0x04
+#define 		SLAVE_ADDRESS 0x04
 
-const unsigned long     MAX_UINT16_T = 4294967295,
-                        MICROS_SECOND = 1000000,
-                        SHUTDOWN_DELAY = 60000;
+#define			MAX_UINT16_T 4294967295
+#define			INCHES_PER_MILE 63360
+#define			MICROS_SECOND 1000000
+#define			MICROSECONDS_MINUTE MICROS_SECOND * 60
+#define			MICROSECONDS_HOUR MICROSECONDS_MINUTE * 60
+
+struct	config {
+	uint16_t	odo_address;
+	uint8_t		rear_teeth;
+	uint16_t	rear_diameter; // inches x 100. eg 8269 for 82.69"
+	unsigned long	shutdown_delay = 60000;
+};
+
+struct odometer {
+	uint32_t	miles_hundredths;
+	uint16_t	count;
+};
+
 
 const int               bikeOnPin = 12,
 			rpmPulsePin = 2,
 			wheelPulsePin = 3,
 			ledPin = 13,
 			oil_Temp_pin = 14;
-const uint8_t		rpm_pulses = 10,
+
+const uint8_t		rpm_pulses = 10,	// How many pulses to average
       			speed_pulses = 10;
-			// MPH_CONV = in/mi * h/min * in/pulse
-//speed = ((100 * 60 * MICROS_SECOND / SPEED_interval) * MPH_CONV * speed_pulses);
-//const float		MPH_CONV = 1.96071428571*60/63360;
-const uint32_t		MPH_CONV = 1.96071428571*60*100*60*MICROS_SECOND*speed_pulses/63360;
-//rpm = ((60 * MICROS_SECOND / RPM_interval) * rpm_pulses);
-const uint32_t		RPM_CONV = 60*MICROS_SECOND*rpm_pulses;
+
+volatile uint32_t	running_odometer,
+			pulses_per_hundredth_mile,
+			odometer_pulses = 0;
+float			inches_per_pulse;
+unsigned long		SHUTDOWN_DELAY = 60000;
+uint32_t		MPH_CONV;
+uint32_t		RPM_CONV;
 
 uint16_t                rpm = 0,
 			temp_oil = 0,
@@ -58,6 +77,7 @@ void sendData(){
   Wire.write((const uint8_t*)&temp_oil,sizeof(temp_oil));
   Wire.write((const uint8_t*)&speed,sizeof(speed));
   Wire.write((const uint8_t*)&supply_voltage,sizeof(supply_voltage));
+  Wire.write((const uint8_t*)&running_odometer,sizeof(running_odometer));
 }
 
 // ISR to get pulse interval for RPM(engine)
@@ -86,14 +106,19 @@ void rpmPulse() {
 void wheelPulse() {
   speed_wkg_micros = micros();
   speed_pulse_count++;
+  odometer_pulses++;
   if (speed_pulse_count >= speed_pulses) {
     speed_pulse_count = 0;
+  }
+  if (odometer_pulses > pulses_per_hundredth_mile) {
+	  odometer_pulses = 0;
+	  running_odometer++;
   }
   SPEED_interval -= speed_pulse_times[speed_pulse_count];
   speed_pulse_times[speed_pulse_count] = (speed_wkg_micros - speed_time_last);
   SPEED_interval += speed_pulse_times[speed_pulse_count];
   speed_time_last = speed_wkg_micros;
-}
+}  
 
 // ISR to signal bike is on
 void bikeOn() {
@@ -145,7 +170,28 @@ double Thermistor(int RawADC) {
   return Temp;
 }
 
+void readEEPROM() {
+	int eeAddress = 0;
+	config eeprom_config;
+
+	EEPROM.get(eeAddress,eeprom_config);
+	odometer saved_odometer;
+
+	EEPROM.get(eeprom_config.odo_address,saved_odometer);
+	running_odometer = saved_odometer.miles_hundredths;
+
+	inches_per_pulse = (eeprom_config.rear_diameter/100.0 * PI) / eeprom_config.rear_teeth;
+	pulses_per_hundredth_mile = (INCHES_PER_MILE / 100) / inches_per_pulse;
+	
+	SHUTDOWN_DELAY = eeprom_config.shutdown_delay;
+	MPH_CONV = 100*inches_per_pulse*MICROSECONDS_HOUR*speed_pulses/INCHES_PER_MILE;
+	RPM_CONV = MICROSECONDS_MINUTE*rpm_pulses;
+}
+
 void setup() {
+  // Setup "constants" configurable
+  readEEPROM();
+
   SleepyPi.enableWakeupAlarm(false);
   SleepyPi.rtcInit(false);
   SleepyPi.enablePiPower(false);
@@ -180,19 +226,17 @@ void setup() {
 }
 
 void loop() {
-  bool	pi_running;
-  float	rpi_current = 0.0;
   static long int oil_Temp_rb[10] = {0};
   static long int oil_Temp_sum = 0;
   static int oil_Temp_rb_i = 0;
 
-  pi_running = SleepyPi.checkPiStatus(50,false);
+  bool pi_running = SleepyPi.checkPiStatus(50,false);
   bike_running = !digitalRead(bikeOnPin);
   if (debug) {
     bike_running = true;
     pi_running = true;
   }
-  rpi_current = SleepyPi.rpiCurrent();
+  float rpi_current = SleepyPi.rpiCurrent();
 
   if (debug) {
     Serial.print("Current: ");
@@ -284,11 +328,6 @@ void loop() {
   }
   
   if (wkgTime < MAX_UINT16_T) { 
-    // Each pulse is 1.96071428571", SPEED_interval is the time it takes for speed_pules
-    // ( A * s/min * us/s) / us/C*in ) * CONV * C = MPH*100
-    // A = multiply constant to give us MPH*100
-    // CONV = in/mi * h/min * in/pulse
-    // C = pulses
     // MPH_CONV is a constant calculated to solve to equation, since the only variable is pulse time
     speed = ( MPH_CONV / wkgTime);
   }
