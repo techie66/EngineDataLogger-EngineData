@@ -19,7 +19,7 @@ void setup() {
 	mConfig.rear_diameter = 2621;
 	mConfig.shutdown_delay = 300000;
 
-	odometer mOdo = {5910835,0};
+	odometer mOdo = {5911701,2};
 	EEPROM.put(0,mConfig);
 	EEPROM.put(mConfig.odo_address,mOdo);
 }

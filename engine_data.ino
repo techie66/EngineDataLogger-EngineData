@@ -13,6 +13,9 @@
 #define			MICROS_SECOND 1000000
 #define			MICROSECONDS_MINUTE MICROS_SECOND * 60
 #define			MICROSECONDS_HOUR MICROSECONDS_MINUTE * 60
+#define			EEPROM_WRITE_LIMT 50000
+#define 		EEPROM_SIZE 1024
+#define			EEPROM_CONFIG_BUFFER 128
 
 struct	config {
 	uint16_t	odo_address;
@@ -188,6 +191,30 @@ void readEEPROM() {
 	RPM_CONV = MICROSECONDS_MINUTE*rpm_pulses;
 }
 
+void saveOdometer() {
+	int eeAddress = 0;
+	config eeConfig;
+	EEPROM.get(eeAddress,eeConfig);
+
+	odometer eeOdometer;
+	EEPROM.get(eeConfig.odo_address,eeOdometer);
+	if (running_odometer > eeOdometer.miles_hundredths) {
+		//Update EEPROM Odometer
+		eeOdometer.miles_hundredths = running_odometer;
+		eeOdometer.count++;
+		if (eeOdometer.count > EEPROM_WRITE_LIMT) {
+			//Rotate address for Odometer
+			eeOdometer.count = 0;
+			eeConfig.odo_address += sizeof(eeOdometer);
+			if (eeConfig.odo_address > EEPROM_SIZE) {
+				eeConfig.odo_address = EEPROM_CONFIG_BUFFER;
+			}
+			EEPROM.put(eeAddress,eeConfig);
+		}
+		EEPROM.put(eeConfig.odo_address,eeOdometer);
+	}
+}
+
 void setup() {
   // Setup "constants" configurable
   readEEPROM();
@@ -232,10 +259,6 @@ void loop() {
 
   bool pi_running = SleepyPi.checkPiStatus(50,false);
   bike_running = !digitalRead(bikeOnPin);
-  if (debug) {
-    bike_running = true;
-    pi_running = true;
-  }
   float rpi_current = SleepyPi.rpiCurrent();
 
   if (debug) {
@@ -247,8 +270,14 @@ void loop() {
     Serial.println(bike_running);
   }
 
+  if (debug) {
+    bike_running = true;
+    pi_running = true;
+  }
+
   while(pi_running == false && bike_running == false) {
     debug_out("Going to Sleep\r\n");
+    saveOdometer();
     delay(500);
     SleepyPi.enablePiPower(false);
     SleepyPi.enableExtPower(false);
