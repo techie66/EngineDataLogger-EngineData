@@ -1,26 +1,19 @@
 #include <EEPROM.h>
-struct	mconfig {
-	uint16_t	odo_address;
-	uint8_t		rear_teeth;
-	uint16_t	rear_diameter; // inches x 100. eg 8269 for 82.69"
-	unsigned long	shutdown_delay = 60000;
-};
-
-struct odometer {
-	uint32_t	miles_hundredths;
-	uint16_t	count;
-};
-
+#include "../EDL_eeprom.h"
 
 void setup() {
-	mconfig mConfig;
-	mConfig.odo_address = 128;
-	mConfig.rear_teeth = 42;
-	mConfig.rear_diameter = 2621;
-	mConfig.shutdown_delay = 300000;
-
-	odometer mOdo = {5911701,2};
+	config mConfig;
+	EEPROM.get(0,mConfig);
+	//mConfig.odo_address = 128;
+	//mConfig.rear_teeth = 42;
+	mConfig.rear_diameter = 2500; //2621
+	//mConfig.shutdown_delay = 300000;
 	EEPROM.put(0,mConfig);
+
+	odometer mOdo;
+	EEPROM.get(mConfig.odo_address,mOdo);
+        //mOdo.miles_hundredths = 5924201;
+        mOdo.trip_hundredths = 5911358;
 	EEPROM.put(mConfig.odo_address,mOdo);
 }
 

@@ -5,6 +5,7 @@
 #include <Wire.h>
 #include <PinChangeInterrupt.h>
 #include <EEPROM.h>
+#include "EDL_eeprom.h"
 
 #define 		SLAVE_ADDRESS 0x04
 
@@ -17,19 +18,6 @@
 #define 		EEPROM_SIZE 1024
 #define			EEPROM_CONFIG_BUFFER 128
 
-struct	config {
-	uint16_t	odo_address;
-	uint8_t		rear_teeth;
-	uint16_t	rear_diameter; // inches x 100. eg 8269 for 82.69"
-	unsigned long	shutdown_delay = 60000;
-};
-
-struct odometer {
-	uint32_t	miles_hundredths;
-	uint16_t	count;
-};
-
-
 const int               bikeOnPin = 12,
 			rpmPulsePin = 2,
 			wheelPulsePin = 3,
@@ -37,9 +25,10 @@ const int               bikeOnPin = 12,
 			oil_Temp_pin = 14;
 
 const uint8_t		rpm_pulses = 10,	// How many pulses to average
-      			speed_pulses = 10;
+      			speed_pulses = 200;
 
 volatile uint32_t	running_odometer,
+	 		running_trip,
 			pulses_per_hundredth_mile,
 			odometer_pulses = 0;
 float			inches_per_pulse;
@@ -81,6 +70,7 @@ void sendData(){
   Wire.write((const uint8_t*)&speed,sizeof(speed));
   Wire.write((const uint8_t*)&supply_voltage,sizeof(supply_voltage));
   Wire.write((const uint8_t*)&running_odometer,sizeof(running_odometer));
+  Wire.write((const uint8_t*)&running_trip,sizeof(running_trip));
 }
 
 // ISR to get pulse interval for RPM(engine)
@@ -112,15 +102,22 @@ void wheelPulse() {
   odometer_pulses++;
   if (speed_pulse_count >= speed_pulses) {
     speed_pulse_count = 0;
+
+    /*// non-running average
+    SPEED_interval = speed_wkg_micros - speed_time_last;
+    speed_time_last = speed_wkg_micros;
+    */
   }
   if (odometer_pulses > pulses_per_hundredth_mile) {
 	  odometer_pulses = 0;
 	  running_odometer++;
   }
+  
   SPEED_interval -= speed_pulse_times[speed_pulse_count];
   speed_pulse_times[speed_pulse_count] = (speed_wkg_micros - speed_time_last);
   SPEED_interval += speed_pulse_times[speed_pulse_count];
   speed_time_last = speed_wkg_micros;
+  
 }  
 
 // ISR to signal bike is on
@@ -182,6 +179,7 @@ void readEEPROM() {
 
 	EEPROM.get(eeprom_config.odo_address,saved_odometer);
 	running_odometer = saved_odometer.miles_hundredths;
+	running_trip = saved_odometer.trip_hundredths;
 
 	inches_per_pulse = (eeprom_config.rear_diameter/100.0 * PI) / eeprom_config.rear_teeth;
 	pulses_per_hundredth_mile = (INCHES_PER_MILE / 100) / inches_per_pulse;
@@ -219,7 +217,7 @@ void setup() {
   // Setup "constants" configurable
   readEEPROM();
 
-  SleepyPi.enableWakeupAlarm(false);
+  SleepyPi.enableWakeupAlarm(false); // 2019-04-25 suddenly made the sleepypi stop working
   SleepyPi.rtcInit(false);
   SleepyPi.enablePiPower(false);
   SleepyPi.enableExtPower(false);
@@ -337,7 +335,9 @@ void loop() {
   supply_voltage = SleepyPi.supplyVoltage();
 
   // Calculate RPM
+  cli();
   wkgTime = RPM_interval;
+  sei();
   if (micros() > ( rpm_time_last + MICROS_SECOND ) ){
     wkgTime = MAX_UINT16_T;
     rpm = 0;
@@ -350,7 +350,9 @@ void loop() {
   }
 
   // Calculate Speed (x100)
+  cli();
   wkgTime = SPEED_interval;
+  sei();
   if (micros() > ( speed_time_last + MICROS_SECOND ) ){
     wkgTime = MAX_UINT16_T;
     speed = 0;
