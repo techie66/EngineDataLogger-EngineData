@@ -58,21 +58,6 @@ volatile uint8_t        rpm_pulse_count = 0,
 
 boolean                 debug = false;
 
-// callback for received data
-void receiveData(int byteCount){
-  // Maybe store a cmd to output requested data
-}
-
-// callback for sending data
-void sendData(){
-  Wire.write((const uint8_t*)&rpm,sizeof(rpm));
-  Wire.write((const uint8_t*)&temp_oil,sizeof(temp_oil));
-  Wire.write((const uint8_t*)&speed,sizeof(speed));
-  Wire.write((const uint8_t*)&supply_voltage,sizeof(supply_voltage));
-  Wire.write((const uint8_t*)&running_odometer,sizeof(running_odometer));
-  Wire.write((const uint8_t*)&running_trip,sizeof(running_trip));
-}
-
 // ISR to get pulse interval for RPM(engine)
 // a little longer than I'd like, since it handles the averaging
 // but it saves clock cycles overall by only calculating interval once
@@ -196,9 +181,10 @@ void saveOdometer() {
 
 	odometer eeOdometer;
 	EEPROM.get(eeConfig.odo_address,eeOdometer);
-	if (running_odometer > eeOdometer.miles_hundredths) {
+	if ((running_odometer > eeOdometer.miles_hundredths) || (running_trip > eeOdometer.trip_hundredths)) {
 		//Update EEPROM Odometer
 		eeOdometer.miles_hundredths = running_odometer;
+		eeOdometer.trip_hundredths = running_trip;
 		eeOdometer.count++;
 		if (eeOdometer.count > EEPROM_WRITE_LIMT) {
 			//Rotate address for Odometer
@@ -211,6 +197,33 @@ void saveOdometer() {
 		}
 		EEPROM.put(eeConfig.odo_address,eeOdometer);
 	}
+}
+
+// callback for received data
+void receiveData(int byteCount){
+  // Maybe store a cmd to output requested data
+  char cmd;
+  while (Wire.available()) {
+    cmd = Wire.read();
+    if (cmd == 'T') {
+      uint8_t s = SREG;
+      cli();
+      // Do Stuff
+      running_trip = running_odometer;
+      saveOdometer();
+      SREG = s;
+    }
+  }
+}
+
+// callback for sending data
+void sendData(){
+  Wire.write((const uint8_t*)&rpm,sizeof(rpm));
+  Wire.write((const uint8_t*)&temp_oil,sizeof(temp_oil));
+  Wire.write((const uint8_t*)&speed,sizeof(speed));
+  Wire.write((const uint8_t*)&supply_voltage,sizeof(supply_voltage));
+  Wire.write((const uint8_t*)&running_odometer,sizeof(running_odometer));
+  Wire.write((const uint8_t*)&running_trip,sizeof(running_trip));
 }
 
 void setup() {
