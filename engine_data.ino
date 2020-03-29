@@ -22,7 +22,8 @@ const int               bikeOnPin = 12,
 			rpmPulsePin = 2,
 			wheelPulsePin = 3,
 			ledPin = 13,
-			oil_Temp_pin = 14;
+			oil_Temp_pin = 14,
+			oil_pres_pin = 15;
 
 const uint8_t		rpm_pulses = 10,	// How many pulses to average
       			speed_pulses = 200;
@@ -38,7 +39,8 @@ uint32_t		RPM_CONV;
 
 uint16_t                rpm = 0,
 			temp_oil = 0,
-			speed = 0;
+			speed = 0,
+			pres_oil = 0;
 float			supply_voltage = 0.0;
 volatile unsigned long  RPM_interval = 0,
 	 		SPEED_interval = 0,
@@ -155,6 +157,18 @@ double Thermistor(int RawADC) {
   return Temp;
 }
 
+double oilPressure( int RawADC ) {
+	/* oilPressure
+	   * Calculate oil pressure from ADC reading
+	   *
+	   *
+	*/
+	static const double Vref = 3.3333;
+	static const double Vconv = 49.444084084084;
+	return (((RawADC/1024.0) * Vref)) * Vconv;
+
+}
+
 void readEEPROM() {
 	int eeAddress = 0;
 	config eeprom_config;
@@ -224,6 +238,7 @@ void sendData(){
   Wire.write((const uint8_t*)&supply_voltage,sizeof(supply_voltage));
   Wire.write((const uint8_t*)&running_odometer,sizeof(running_odometer));
   Wire.write((const uint8_t*)&running_trip,sizeof(running_trip));
+  Wire.write((const uint8_t*)&pres_oil,sizeof(pres_oil));
 }
 
 void setup() {
@@ -385,6 +400,11 @@ void loop() {
   oil_Temp_rb[oil_Temp_rb_i] = Thermistor(analogRead(oil_Temp_pin)) * 100;
   oil_Temp_sum += oil_Temp_rb[oil_Temp_rb_i];
   temp_oil = oil_Temp_sum / 10;
+
+
+  // Store oil pressure
+  delay(10); // allow ADC to settle
+  pres_oil = oilPressure(analogRead(oil_pres_pin)) * 100;
 
   if (debug) {
       delay(500);
