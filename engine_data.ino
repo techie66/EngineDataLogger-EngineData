@@ -18,12 +18,11 @@
 #define 		EEPROM_SIZE 1024
 #define			EEPROM_CONFIG_BUFFER 128
 
-const int               bikeOnPin = 12,
+const int               bikeOnPin = 9,
 			rpmPulsePin = 2,
 			wheelPulsePin = 3,
-			ledPin = 13,
-			oil_Temp_pin = 14,
-			oil_pres_pin = 15;
+			oil_Temp_pin = A0,
+			oil_pres_pin = A1;
 
 const uint8_t		rpm_pulses = 10,	// How many pulses to average
       			speed_pulses = 200;
@@ -32,6 +31,8 @@ volatile uint32_t	running_odometer,
 	 		running_trip,
 			pulses_per_hundredth_mile,
 			odometer_pulses = 0;
+volatile bool           ready_to_save_odo = false;  
+const int               odo_save_interval_hundredths = 100;
 float			inches_per_pulse;
 unsigned long		SHUTDOWN_DELAY = 60000;
 uint32_t		MPH_CONV;
@@ -96,8 +97,14 @@ void wheelPulse() {
     */
   }
   if (odometer_pulses > pulses_per_hundredth_mile) {
-	  odometer_pulses = 0;
-	  running_odometer++;
+    static int running_ticks_to_save = 0;
+    odometer_pulses = 0;
+    running_odometer++;
+    running_ticks_to_save++;
+    if ( running_ticks_to_save >= odo_save_interval_hundredths ) {
+      ready_to_save_odo = true;
+      running_ticks_to_save = 0;
+    }
   }
   
   SPEED_interval -= speed_pulse_times[speed_pulse_count];
@@ -164,7 +171,9 @@ double oilPressure( int RawADC ) {
 	   *
 	*/
 	static const double Vref = 3.3333;
-	static const double Vconv = 49.444084084084;
+	// Generic conversion factor from V to pressure unit, assumed linear
+	//static const double Vconv = 49.444084084084;
+	static const double Vconv = 23.995643331;
 	return (((RawADC/1024.0) * Vref)) * Vconv;
 
 }
@@ -258,12 +267,10 @@ void setup() {
   Wire.onRequest(sendData);
 
   // Setup pins
-  pinMode(ledPin,OUTPUT); // Interrupt
   pinMode(rpmPulsePin,INPUT_PULLUP); // Interrupt
   pinMode(wheelPulsePin,INPUT_PULLUP); // Interrupt
   pinMode(bikeOnPin, INPUT_PULLUP);
 
-  digitalWrite(ledPin,HIGH);
 
   // PinChangeInterrupt can always be abbreviated with PCINT
   attachPCINT(digitalPinToPCINT(bikeOnPin), bikeOn, CHANGE);
@@ -287,6 +294,11 @@ void loop() {
   bike_running = !digitalRead(bikeOnPin);
   float rpi_current = SleepyPi.rpiCurrent();
 
+  if ( ready_to_save_odo ) {
+    saveOdometer();
+    ready_to_save_odo = false;
+  }
+
   if (debug) {
     Serial.print("Current: ");
     Serial.print(rpi_current);
@@ -307,11 +319,9 @@ void loop() {
     delay(500);
     SleepyPi.enablePiPower(false);
     SleepyPi.enableExtPower(false);
-    digitalWrite(ledPin,LOW);
     enablePCINT(digitalPinToPCINT(bikeOnPin));
     SleepyPi.powerDown(SLEEP_FOREVER, ADC_OFF, BOD_OFF);
     disablePCINT(digitalPinToPCINT(bikeOnPin));
-    digitalWrite(ledPin,HIGH);
     pi_running = SleepyPi.checkPiStatus(50,false);
     bike_running = !digitalRead(bikeOnPin);
   }
