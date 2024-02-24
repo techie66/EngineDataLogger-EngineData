@@ -1,0 +1,56 @@
+EESchema-LIBRARY Version 2.4
+#encoding utf-8
+#
+# Microchip MCP23018-E/SS
+#
+DEF MCP23018-E_SS U 0 40 Y Y 1 L N
+F0 "U" 0 200 50 H V L CNN 
+F1 "MCP23018-E/SS" 0 300 50 H V L CNN 
+F2 "Microchip-MCP23018-E_SS-*" 0 400 50 H I L CNN 
+F3 "http://ww1.microchip.com/downloads/en/DeviceDoc/22103a.pdf" 0 500 50 H I L CNN 
+F4 "MO-150-AG" 0 600 50 H I L CNN "Code  JEDEC"
+F5 "Manufacturer URL" 0 700 50 H I L CNN "Component Link 1 Description"
+F6 "http://www.microchip.com/" 0 800 50 H I L CNN "Component Link 1 URL"
+F7 "Package Specification" 0 900 50 H I L CNN "Component Link 3 Description"
+F8 "http://www.microchip.com/stellent/groups/techpub_sg/documents/packagingspec/en012702.pdf" 0 1000 50 H I L CNN "Component Link 3 URL"
+F9 "revA, Sep-2008" 0 1100 50 H I L CNN "Datasheet Version"
+F10 "24-Lead Plastic Shrink Small Outline (SS) - 5.3mm Body [SSOP]" 0 1200 50 H I L CNN "Package Description"
+F11 "revBB, Aug-2009" 0 1300 50 H I L CNN "Package Version"
+F12 "IC" 0 1400 50 H I L CNN "category"
+F13 "1159047" 0 1500 50 H I L CNN "ciiva ids"
+F14 "2a8c1b1cc8b54f6d" 0 1600 50 H I L CNN "library id"
+F15 "Microchip" 0 1700 50 H I L CNN "manufacturer"
+F16 "SSOP-SS24" 0 1800 50 H I L CNN "package"
+F17 "1331939366" 0 1900 50 H I L CNN "release date"
+F18 "A32BB52E-C1AB-4573-99EA-BF3448FBDA05" 0 2000 50 H I L CNN "vault revision"
+F19 "yes" 0 2100 50 H I L CNN "imported"
+DRAW
+X GPB0 2 1200 -900 100 L 40 40 1 1 B 
+X GPB1 3 1200 -1000 100 L 40 40 1 1 B 
+X GPB2 4 1200 -1100 100 L 40 40 1 1 B 
+X GPB3 5 1200 -1200 100 L 40 40 1 1 B 
+X GPB4 6 1200 -1300 100 L 40 40 1 1 B 
+X GPB5 7 1200 -1400 100 L 40 40 1 1 B 
+X GPB6 8 1200 -1500 100 L 40 40 1 1 B 
+X GPB7 9 1200 -1600 100 L 40 40 1 1 B 
+X VDD 10 100 -1400 100 R 40 40 1 1 W 
+X VSS 1 100 -1600 100 R 40 40 1 1 W 
+X SCL 11 100 0 100 R 40 40 1 1 I 
+X SDA 12 100 -100 100 R 40 40 1 1 B 
+X ADDR 13 100 -300 100 R 40 40 1 1 I 
+X ~RESET~ 14 100 -500 100 R 40 40 1 1 I 
+X INTB 15 100 -800 100 R 40 40 1 1 C 
+X INTA 16 100 -700 100 R 40 40 1 1 C 
+X GPA0 17 1200 0 100 L 40 40 1 1 B 
+X GPA1 18 1200 -100 100 L 40 40 1 1 B 
+X GPA2 19 1200 -200 100 L 40 40 1 1 B 
+X GPA3 20 1200 -300 100 L 40 40 1 1 B 
+X GPA4 21 1200 -400 100 L 40 40 1 1 B 
+X GPA5 22 1200 -500 100 L 40 40 1 1 B 
+X GPA6 23 1200 -600 100 L 40 40 1 1 B 
+X GPA7 24 1200 -700 100 L 40 40 1 1 B 
+S 200 100 1100 -1700 1 1 0 f
+ENDDRAW
+ENDDEF
+#
+# End Library

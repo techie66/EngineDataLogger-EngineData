@@ -1,0 +1,7 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP MCP23018-E/SS
+D MCP23018-E/SS
+F http://ww1.microchip.com/downloads/en/DeviceDoc/22103a.pdf
+$ENDCMP
+# end doc library

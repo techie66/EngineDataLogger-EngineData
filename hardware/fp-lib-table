@@ -1,0 +1,6 @@
+(fp_lib_table
+  (lib (name "G3VM-31BR")(type "KiCad")(uri "${KIPRJMOD}/Footprints/G3VM-31BR.pretty")(options "")(descr ""))
+  (lib (name "40pin")(type "KiCad")(uri "${KIPRJMOD}/Footprints/40pin.pretty")(options "")(descr ""))
+  (lib (name "Modules")(type "KiCad")(uri "${KIPRJMOD}/Footprints/Modules.pretty")(options "")(descr ""))
+  (lib (name "TCA9517")(type "KiCad")(uri "${KIPRJMOD}/Footprints/TCA9517.pretty")(options "")(descr ""))
+)
