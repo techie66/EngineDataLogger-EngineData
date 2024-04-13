@@ -172,9 +172,17 @@ double oilPressure( int RawADC ) {
 	*/
 	static const double Vref = 3.3333;
 	// Generic conversion factor from V to pressure unit, assumed linear
-	//static const double Vconv = 49.444084084084;
-	static const double Vconv = 23.995643331;
-	return (((RawADC/1024.0) * Vref)) * Vconv;
+  /*  Ambient = 14.7 psi = 0.5V from transducer = 0.25V after voltage divider
+   *  Max = 150 psi = 4.5V from transducer = 2.25V after voltage divider
+   *  Calculate slope of regression line and that is Vconv
+  */
+	static const double Vconv = 75.0; // Max = 150
+  static const double pfac = 18.75; // linear correction
+	//static const double Vconv = 792.6; // Max = 1600
+  //static const double pfac = 175; // linear correction
+  double intermediate = (((RawADC/1024.0) * Vref)) * Vconv;
+  if ( intermediate > pfac ) return intermediate - pfac; 
+  else return 0;
 
 }
 
@@ -361,7 +369,7 @@ void loop() {
     }
     if(pi_running) {
       if (time - time_BikeOff > SHUTDOWN_DELAY) {
-        SleepyPi.piShutdown();
+        SleepyPi.piShutdown(50); // argument is threshold mA to detect pi is shut off
         SleepyPi.enableExtPower(false);
         SleepyPi.enablePiPower(false);
       }
