@@ -278,6 +278,10 @@ void sendData()
 
 void setup()
 {
+  if (debug) {
+    Serial.begin(9600); // start serial for output
+    Serial.println("Ready!");
+  }
   // Setup "constants" configurable
   readEEPROM();
 
@@ -299,6 +303,9 @@ void setup()
   pinMode(bikeOnPin, INPUT_PULLUP);
   while (CAN_OK != CAN.begin(CAN_500KBPS, MCP_12MHz)) {            // init can bus : baudrate = 500k
     delay(100);
+    if (debug) {
+      Serial.println("CAN Initialization failing!");
+    }
   }
 
   CAN.mcpPinMode(MCP_RX0BF,MCP_PIN_OUT);
@@ -311,10 +318,6 @@ void setup()
   attachInterrupt(digitalPinToInterrupt(rpmPulsePin), rpmPulse, FALLING);//Initialize the intterrupt pin (Arduino digital pin 2);
   attachInterrupt(digitalPinToInterrupt(wheelPulsePin), wheelPulse, FALLING);//Initialize the intterrupt pin (Arduino digital pin 3);
 
-  if (debug) {
-    Serial.begin(9600); // start serial for output
-    Serial.println("Ready!");
-  }
 }
 
 void loop()
@@ -485,7 +488,7 @@ void loop()
     _response[2] = _speed;
     uint8_t _pres = pres_oil / 100;
     _response[3] = _pres;
-    uint8_t _temp = temp_oil / 100;
+    uint8_t _temp = (temp_oil / 100) + 50;
     _response[4] = _temp;
     _response[5] = _temp >> 8;
     uint8_t _volts = supply_voltage * 10.0;
@@ -496,8 +499,8 @@ void loop()
   static unsigned long last_engine2 = 0;
   if ( last_engine2 + CAN_ENGINE2_RATE < millis()) {
     byte _response[8] = {0};
-    uint32_t _trip = running_trip;
-    uint32_t _odo = running_odometer;
+    uint32_t _trip = (running_odometer - running_trip) * 1.609344 / 10.0;
+    uint32_t _odo = running_odometer * 1.609344 / 10.0;
     _response[0] = _odo;
     _response[1] = _odo >> 8;
     _response[2] = _odo >> 16;
