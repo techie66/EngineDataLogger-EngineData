@@ -1,0 +1,5 @@
+(sym_lib_table
+  (lib (name "G3VM-31BR")(type "Legacy")(uri "${KIPRJMOD}/Libraries/G3VM-31BR.lib")(options "")(descr ""))
+  (lib (name "TCA9517")(type "KiCad")(uri "${KIPRJMOD}/Libraries/TCA9517.kicad_sym")(options "")(descr ""))
+  (lib (name "Regulators")(type "Legacy")(uri "${KIPRJMOD}/Libraries/Regulator_Switching.lib")(options "")(descr ""))
+)
