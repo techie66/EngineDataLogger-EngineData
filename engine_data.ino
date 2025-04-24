@@ -185,14 +185,15 @@ double oilPressure( int RawADC ) {
 	   *
 	   *
 	*/
-	static const double Vref = 3.3333;
+	static const double Vref = 3.26;
 	// Generic conversion factor from V to pressure unit, assumed linear
   /*  Ambient = 14.7 psi = 0.5V from transducer = 0.25V after voltage divider
    *  Max = 150 psi = 4.5V from transducer = 2.25V after voltage divider
    *  Calculate slope of regression line and that is Vconv
   */
 	static const double Vconv = 75.0; // Max = 150
-  static const double pfac = 18.75; // linear correction
+  static const double pfac = 0; // linear correction
+  //static const double pfac = 18.75; // linear correction
 	//static const double Vconv = 792.6; // Max = 1600
   //static const double pfac = 175; // linear correction
   double intermediate = (((RawADC/1024.0) * Vref)) * Vconv;
