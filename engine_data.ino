@@ -489,7 +489,7 @@ void loop()
     _response[2] = _speed;
     uint8_t _pres = pres_oil / 100;
     _response[3] = _pres;
-    uint8_t _temp = (temp_oil / 100) + 50;
+    uint16_t _temp = (temp_oil / 100) + 50;
     _response[4] = _temp;
     _response[5] = _temp >> 8;
     uint8_t _volts = supply_voltage * 10.0;
