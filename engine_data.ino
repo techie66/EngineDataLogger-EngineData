@@ -49,9 +49,9 @@ uint32_t MPH_CONV;
 uint32_t RPM_CONV;
 
 uint16_t rpm = 0,
-         temp_oil = 0,
+         temp_oil = 0, // hundredths, F
          speed = 0,
-         pres_oil = 0;
+         pres_oil = 0; // hundredths, psi
 float supply_voltage = 0.0;
 volatile unsigned long  RPM_interval = 0,
                         SPEED_interval = 0,
@@ -199,6 +199,20 @@ double oilPressure( int RawADC ) {
   double intermediate = (((RawADC/1024.0) * Vref)) * Vconv;
   if ( intermediate > pfac ) return intermediate - pfac; 
   else return 0;
+}
+
+/*
+ * Basic linear compensation for presure reading
+ * not very accurate
+ */
+uint16_t compensateOilPressure(uint16_t p, uint16_t t)
+{
+  uint16_t compensatedPressure=p;
+  double compensationFactor = 0.037222;
+  if ( t > 7000) {
+    compensatedPressure = p + ((t - 7000) * compensationFactor);
+  }
+  return compensatedPressure;
 }
 
 void readEEPROM()
@@ -452,6 +466,7 @@ void loop()
   // Store oil pressure
   delay(10); // allow ADC to settle
   pres_oil = oilPressure(analogRead(oil_pres_pin)) * 100;
+  pres_oil = compensateOilPressure(pres_oil,temp_oil);
 
   if (debug) {
     delay(500);
